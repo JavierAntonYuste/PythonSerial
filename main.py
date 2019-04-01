@@ -1,91 +1,221 @@
-import serial
-
+import tkinter as tk
+import serial as serial
 from tkinter import *
 from tkinter import scrolledtext
+from tkinter import simpledialog
 
-global unlockScreen2
-unlockScreen2 = False
+import threading
+import time
+
+
+i=0
+baudrate = 115200
 
 def serial_connection():
-    COMPORT = 3
+
     global ser
-    ser = serial.Serial()
-    ser.baudrate = 38400
-    ser.port = "COM"+ str(COMPORT - 1) #counter for port name starts at 0
-    ser.flushInput()
+    ser = serial.Serial('/dev/ttyUSB0', baudrate= baudrate)  # open serial port
+    print(ser.name)         # check which port was really used
+    ser.write(b'hello')     # write a string
+    ser.close()
 
     #check to see if port is open or closed
     if (ser.isOpen() == False):
-        print ('The Port %d is Open '%COMPORT + ser.portstr)
+        print ('The Port %s is Open '% ser.portstr)
           #timeout in seconds
         ser.timeout = 10
         ser.open()
     else:
-        print ('The Port %d is closed' %COMPORT)
+        print ('The Port is closed')
 
-##serial_connection() ##Uncomment for opening the serial connection
+serial_connection() ##Uncomment for opening the serial connection
 
-window= Tk()
-window.title("SELC - Practica 1")
-##window.geometry('500x400')
 
-txt = scrolledtext.ScrolledText(window,width=40,height=10)
-txt.grid(column=0,row=0)
 
-def onClick1():
-    ser.write('A')
-    txt.insert(INSERT,'A sent\n')
+## Stage 1 __________________________________________________________________________________________
+class Object(tk.Tk, object):
+    def __init__(self):
+        super(Object, self).__init__()
+        global master
+        master = tk.Canvas(self)
+        #master.title("SELC - Practica 1")
+        master.pack()
 
-def onClick2():
-    global ser
-    ser.write('B')
-    txt.insert(INSERT,'B sent\n')
+        ## FIRST SCREEN__________________________________________________________
+        ##Placed Objects
+        self.check1= tk.Button(master, text="Check",command=lambda: self.checkResult1(self.check1))
+        self.check1.place(x=140, y=175)
 
-def onClick3():
-    ser.write('5')
-    txt.insert(INSERT,'5 sent\n')
+        self.entry1 = Entry(master)
+        self.entry1.place(x=95, y= 75)
 
-def onClick4():
-    while True:
-        try:
-            ser_bytes = ser.readline()
-            decoded_bytes = float(ser_bytes[0:len(ser_bytes)-2].decode("ascii"))
-            txt.insert(INSERT,'You sent:' + str(decoded_bytes)+'\n')
+        self.resultmess1 = Message(master, width = 150)
+        self.resultmess1.place (x=130,y=125)
 
-            #Check conditions for unlock the 2nd screen
+        self.mess1=Message(master, text= 'Introduza la tasa de decodificacion:', width = 300)
+        self.mess1.place(x=60,y=25)
 
-            # if (checkCondition):
-            #     ##Unlock Screen 2 button
-            #     global unlockScreen2
-            #     unlockScreen2=True
-            # else:
-            #     txt.insert(INSERT,'Wrong code, try again.')
-            break
-        except:
-            print("error")
-            break
+        #Built Objects
+        self.btn1 = tk.Button(master, text='Siguiente pantalla', command=lambda: self.nextStage1(self.btn1))
 
-def onClick5():
-    if (unlockScreen2==True):
-        window2= Tk()
-        window2.title("SELC - Hito 2")
-        window2.geometry('500x400')
+    def checkResult1(self, event):
+        result= self.entry1.get()
+        if (result == str(baudrate)):
+            self.btn1.place(x=105, y=175)
+            self.check1.place_forget()
+            self.resultmess1.config(text="CORRECTO", bg = "green", foreground = "white")
+            self.entry1.config(state='disabled')
+        else:
+            self.resultmess1.config(text="INCORRECTO", bg ="red", foreground = "white")
 
-btn=Button(window, text="A", command=onClick1)
-btn.grid(column=2, row=0, padx= 15)
 
-btn=Button(window, text="B", command=onClick2)
-btn.grid(column=3, row=0, padx= 15)
+    def nextStage1 (self, event):
+        self.mess1.place_forget()
+        self.entry1.place_forget()
+        self.btn1.place_forget()
+        self.resultmess1.place_forget()
+        self.buildStage2()
 
-btn=Button(window, text="5", command=onClick3)
-btn.grid(column=4, row=0, padx= 15)
 
-btn=Button(window, text="Read data", command=onClick4)
-btn.grid(column=5, row=0, padx= 15)
+## Stage 2 ____________________________________________________________________________________________
 
-btn=Button(window, text="Next Stage", command=onClick5)
-btn.grid(column=0, row=1, pady= 20)
+    def onClick1(self, event):
+        ser.write('A')
+        self.txt1.insert(INSERT,'A sent\n')
 
-window.mainloop()
+    def onClick2(self, event):
+        ser.write('B')
+        self.txt1.insert(INSERT,'B sent\n')
 
-ser.close()
+    def onClick3(self, event):
+        ser.write('5')
+        self.txt1.insert(INSERT,'5 sent\n')
+
+    def read(self):
+        i=0
+        self.txt1.insert(INSERT,'Haz click en un boton para comenzar\n')
+        while True:
+            i = i+1
+            size = ser.inWaiting()
+            data=ser.read(size+2)
+
+            print "Data: " + str(data)
+            print("waiting " + str(ser.inWaiting()))
+
+            result = int(float(data))
+
+            if (result== 65): ##Codigo del caracter deseado
+                break
+
+            time.sleep(0.1)
+
+        print ("after while")
+        self.nextStage2()
+
+
+
+    def buildStage2(self):
+        ##Elements in Screen 1
+        global master
+
+        self.txt1 = scrolledtext.ScrolledText(master,width=40,height=10)
+        self.txt1.place(x=25, y=5)
+
+        self.btn21=Button(master, text="A", command=lambda: self.onClick1(self.btn21))
+        self.btn21.place(x=100, y=200)
+
+        self.btn22=Button(master, text="B", command=lambda: self.onClick2(self.btn22))
+        self.btn22.place(x=175, y=200)
+
+        self.btn23=Button(master, text="5", command=lambda: self.onClick3(self.btn23))
+        self.btn23.place(x=250, y=200)
+
+        self.btn24 = tk.Button(master, text='Siguiente pantalla', command=lambda: self.buildStage3(self.btn21))
+        self.resultmess2 = Message(master, width = 150)
+
+
+
+
+        t1 = threading.Thread(target=self.read, args=())
+        t1.start()
+
+    def nextStage2(self):
+        self.txt1.place_forget()
+        self.btn21.place_forget()
+        self.btn22.place_forget()
+        self.btn23.place_forget()
+
+        self.btn24.place(x= 100, y= 150)
+        self.resultmess2.place(x=130, y=100)
+        self.resultmess2.config(text="CORRECTO", bg = "green", foreground = "white")
+
+##Stage 3_____________________________________________________________________
+    def buildStage3(self,event):
+        self.btn24.place_forget()
+
+        global master
+
+        self.txt2 = scrolledtext.ScrolledText(master,width=40,height=10)
+        self.txt2.place(x=25, y=5)
+
+        self.btn31=Button(master, text="A", command=lambda: self.onClick4(self.btn31))
+        self.btn31.place(x=100, y=200)
+
+        self.btn32=Button(master, text="B", command=lambda: self.onClick5(self.btn32))
+        self.btn32.place(x=175, y=200)
+
+        self.btn33=Button(master, text="5", command=lambda: self.onClick6(self.btn33))
+        self.btn33.place(x=250, y=200)
+
+        t1 = threading.Thread(target=self.readWord, args=())
+        t1.start()
+
+    def onClick4(self, event):
+        ser.write('HOLA')
+        self.txt1.insert(INSERT,'Hola sent\n')
+
+    def onClick5(self, event):
+        ser.write('BIEN')
+        self.txt1.insert(INSERT,'Bien sent\n')
+
+    def onClick6(self, event):
+        ser.write('TODO')
+        self.txt1.insert(INSERT,'Todo sent\n')
+
+
+
+    def readWord(self):
+        i=0
+        self.txt1.insert(INSERT,'Haz click en un boton para comenzar\n')
+        while True:
+            i = i+1
+            size = ser.inWaiting()
+            data=ser.read(size+8)
+
+            print "Data: " + str(data)
+            print("waiting " + str(ser.inWaiting()))
+
+            result = int(float(data))
+
+            if (result== 65): ##Codigo del caracter deseado
+                break
+
+            time.sleep(0.1)
+
+        print ("after while")
+        self.nextStage2()
+
+
+
+
+
+
+
+
+
+
+
+
+
+if __name__ == "__main__":
+    Object().mainloop()
