@@ -112,8 +112,6 @@ class Object(tk.Tk, object):
         print ("after while")
         self.nextStage2()
 
-
-
     def buildStage2(self):
         ##Elements in Screen 1
         global master
@@ -133,9 +131,6 @@ class Object(tk.Tk, object):
         self.btn24 = tk.Button(master, text='Siguiente pantalla', command=lambda: self.buildStage3(self.btn21))
         self.resultmess2 = Message(master, width = 150)
 
-
-
-
         t1 = threading.Thread(target=self.read, args=())
         t1.start()
 
@@ -152,6 +147,7 @@ class Object(tk.Tk, object):
 ##Stage 3_____________________________________________________________________
     def buildStage3(self,event):
         self.btn24.place_forget()
+        self.resultmess2.place_forget()
 
         global master
 
@@ -182,8 +178,6 @@ class Object(tk.Tk, object):
         ser.write('TODO')
         self.txt1.insert(INSERT,'Todo sent\n')
 
-
-
     def readWord(self):
         i=0
         self.txt1.insert(INSERT,'Haz click en un boton para comenzar\n')
@@ -203,18 +197,18 @@ class Object(tk.Tk, object):
             time.sleep(0.1)
 
         print ("after while")
-        self.nextStage2()
+        self.finishStage()
 
 
+def finishStage(self):
+    self.txt2.place_forget()
+    self.btn31.place_forget()
+    self.btn32.place_forget()
+    self.btn33.place_forget()
 
-
-
-
-
-
-
-
-
+    self.resultmess3 = Message(master, width = 150)
+    self.resultmess3.place(x=130, y=100)
+    self.resultmess3.config(text="Has completado todo el laboratorio", bg = "green", foreground = "white")
 
 
 if __name__ == "__main__":
