@@ -3,7 +3,10 @@ import serial as serial
 from tkinter import *
 from tkinter import simpledialog
 
+from datetime import datetime
+
 import mysql.connector as mysql
+import requests
 
 import threading
 import time
@@ -14,6 +17,7 @@ timeBeginLab=0
 timeTotal=0
 counting = False
 userName=""
+puntosPerdidos=0
 
 # Connection with serial property
 def serial_connection():
@@ -82,7 +86,6 @@ class Object(tk.Tk, object):
         t1.start()
 
     def onClickStop(self, event):
-        ser.close()
 
         global timeTotal, data, userName, puntosPerdidos, stop_threads,timeTry, count, counting, time_start, time_stop, timeBeginLab
         registerTimeTotal(data, timeTotal)
@@ -99,10 +102,18 @@ class Object(tk.Tk, object):
 
         except:
             print("Not able to get points")
-
         puntosPerdidos= 50 * timeTotal + 10*timeTries
 
-        print ("Puntos perdidos = " + str(puntosPerdidos))
+        print ("puntosPerdidos = " + str(puntosPerdidos))
+
+        time=now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        URL = "http://132.4.5.9:50000/registerBonus"
+        data= {'user_id':user_id,
+                'points':10000-puntosPerdidos,
+                'timestamp': time}
+
+        #POST
+        #r = requests.post(url = URL, data = data)
 
         stop_threads=True
         timeTotal=0
@@ -111,10 +122,6 @@ class Object(tk.Tk, object):
         time_start=0
         time_stop=0
         timeBeginLab=0
-
-        #time.sleep(5)
-        ser.open()
-
 
         self.btn1.place_forget()
 
@@ -132,9 +139,11 @@ class Object(tk.Tk, object):
         time_stop = 0
         while True:
             rawData= ser.readline()
-
             data = rawData.replace(" ","").strip().split(",")
+            print (data)
 
+            if len(data)!=3:
+                continue
             ##Cambio de Usuario
             if (data[0]!=userName or (int(data[2])==1 and timeBeginLab==0)):
                 stop_threads=False
@@ -155,11 +164,17 @@ class Object(tk.Tk, object):
             action = int(data[2])
 
             if (action==1):
-                if (data[0]!=userName or (int(data[2])==1 and timeBeginLab==0)):
-
+                if int(data[1]) ==1:
+                    global puntosPerdidos
+                    puntosPerdidos=0
                     timeBeginLab=time.time()
-                time_start =time.time()
+                    deleteShoots(data)
 
+
+                if (data[0]!=userName or (int(data[2])==1 and timeBeginLab==0)):
+                    timeBeginLab=time.time()
+
+                time_start =time.time()
                 count=0
                 counting = True
 
@@ -204,23 +219,35 @@ def registerTimeTry (data, duration):
     except:
         print("Error: Not able to register timeTry")
 
-def registerTimeTotal (data, duration):
+def deleteShoots(data): ##Borrar datos de un puesto si llega la pulsacion 1
     user_id = data[0].strip('P')
+    print ("before select")
     try:
-        query = "SELECT user_id FROM shootsTotal"
+        query= "SELECT id FROM shoots WHERE user_id = " + str(user_id)
         cursor.execute(query)
         records = cursor.fetchall()
+        print ("inside deleteShoots")
+    except:
+        print("Not able to select id")
 
-        if len(records)==0:
-            query = "INSERT INTO shootsTotal (user_id, duration) VALUES" + "(" +  str(user_id)+ "," + str(round(duration,2))+")"
-        else:
-            for user in records:
-                if (int(user_id)==user[0]):
-                    query="UPDATE shootsTotal SET duration =" + str(round(duration,2)) + "WHERE user_id=" + str(user_id)
-                    break
-                else:
-                    query = "INSERT INTO shootTotal (user_id, duration) VALUES" + "(" +  str(user_id)+ "," + str(round(duration,2))+")"
+    if len(records)>0:
+        try:
+            query="DELETE FROM shoots WHERE user_id =" + str(user_id)
+            cursor.execute(query)
+            db.commit()
+        except:
+            print("Error: Not able to delete shoots")
+    else:
+        return
 
+def registerTimeTotal (data, duration):
+    user_id = data[0].strip('P')
+    timestamp=time.time()
+    print ("Timestamp= " + str(int(timestamp)))
+    try:
+        print ("inside try")
+        query= "INSERT INTO shootsTotal (user_id, duration, moment) VALUES" + "(" +  str(user_id)+ "," + str(round(duration,2))+","+ str(int(timestamp))+")"
+        print(query)
         cursor.execute(query)
         db.commit()
     except:
